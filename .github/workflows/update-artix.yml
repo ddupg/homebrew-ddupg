@@ -1,0 +1,171 @@
+name: update artix formula
+
+run-name: Update artix ${{ github.event.inputs.tag_name || github.event.client_payload.tag_name }} (${{ github.event.client_payload.dispatch_id || 'manual' }})
+
+on:
+  repository_dispatch:
+    types: [artix_release_published]
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: "artix release tag, e.g. v0.2.0"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: update-artix-formula
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    name: prepare formula
+    runs-on: ubuntu-24.04
+    outputs:
+      changed: ${{ steps.update.outputs.changed }}
+      tag_name: ${{ steps.meta.outputs.tag_name }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve release metadata
+        id: meta
+        env:
+          INPUT_TAG_NAME: ${{ github.event.inputs.tag_name }}
+          PAYLOAD_TAG_NAME: ${{ github.event.client_payload.tag_name }}
+        run: |
+          set -euo pipefail
+
+          tag_name="${INPUT_TAG_NAME:-$PAYLOAD_TAG_NAME}"
+          if [ -z "$tag_name" ]; then
+            echo "::error::tag_name is required"
+            exit 1
+          fi
+          if [[ "$tag_name" != v* ]]; then
+            echo "::error::tag_name must start with v: $tag_name"
+            exit 1
+          fi
+
+          echo "tag_name=$tag_name" >> "$GITHUB_OUTPUT"
+
+      - name: Download release assets and update formula
+        id: update
+        env:
+          TAG_NAME: ${{ steps.meta.outputs.tag_name }}
+        run: |
+          set -euo pipefail
+
+          mkdir -p dist
+
+          targets=(
+            "x86_64-apple-darwin"
+            "aarch64-apple-darwin"
+            "x86_64-unknown-linux-gnu"
+          )
+
+          for target in "${targets[@]}"; do
+            archive="artix-${target}.tar.gz"
+            url="https://github.com/ddupg/artix/releases/download/${TAG_NAME}/${archive}"
+            curl --fail --location --show-error --silent "$url" --output "dist/${archive}"
+            sha="$(sha256sum "dist/${archive}" | awk '{print $1}')"
+            printf '%s=%s\n' "$target" "$sha" >> dist/checksums.txt
+          done
+
+          declare -A shas
+          while IFS='=' read -r target sha; do
+            shas["$target"]="$sha"
+          done < dist/checksums.txt
+
+          ruby scripts/update_artix_formula.rb \
+            --tag "$TAG_NAME" \
+            --sha "x86_64-apple-darwin=${shas[x86_64-apple-darwin]}" \
+            --sha "aarch64-apple-darwin=${shas[aarch64-apple-darwin]}" \
+            --sha "x86_64-unknown-linux-gnu=${shas[x86_64-unknown-linux-gnu]}"
+
+          if git diff --quiet -- Formula/artix.rb; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "Formula already matches ${TAG_NAME}"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Upload updated formula
+        if: steps.update.outputs.changed == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: updated-artix-formula
+          path: Formula/artix.rb
+          if-no-files-found: error
+
+  validate:
+    name: validate formula (${{ matrix.name }})
+    needs: prepare
+    if: needs.prepare.outputs.changed == 'true'
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: macos-arm64
+            runner: macos-14
+          - name: linux-x86_64
+            runner: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download updated formula
+        uses: actions/download-artifact@v4
+        with:
+          name: updated-artix-formula
+          path: updated-formula
+
+      - name: Apply updated formula
+        run: cp updated-formula/artix.rb Formula/artix.rb
+
+      - name: Set up Homebrew on Linux
+        if: runner.os == 'Linux'
+        uses: Homebrew/actions/setup-homebrew@master
+
+      - name: Install and test formula
+        run: |
+          set -euo pipefail
+          brew install --formula ./Formula/artix.rb
+          brew test artix
+
+  push:
+    name: push formula
+    needs:
+      - prepare
+      - validate
+    if: needs.prepare.outputs.changed == 'true'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download updated formula
+        uses: actions/download-artifact@v4
+        with:
+          name: updated-artix-formula
+          path: updated-formula
+
+      - name: Commit and push formula
+        env:
+          TAG_NAME: ${{ needs.prepare.outputs.tag_name }}
+        run: |
+          set -euo pipefail
+
+          cp updated-formula/artix.rb Formula/artix.rb
+
+          if git diff --quiet -- Formula/artix.rb; then
+            echo "Formula already matches ${TAG_NAME}; nothing to push"
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Formula/artix.rb
+          git commit -m "Update artix to ${TAG_NAME}"
+          git push origin HEAD:main
