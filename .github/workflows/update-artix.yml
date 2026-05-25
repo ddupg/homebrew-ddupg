@@ -27,7 +27,7 @@ jobs:
       changed: ${{ steps.update.outputs.changed }}
       tag_name: ${{ steps.meta.outputs.tag_name }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5.0.0
 
       - name: Resolve release metadata
         id: meta
@@ -112,7 +112,7 @@ jobs:
           - name: linux-x86_64
             runner: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5.0.0
 
       - name: Download updated formula
         uses: actions/download-artifact@v4
@@ -143,7 +143,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5.0.0
 
       - name: Download updated formula
         uses: actions/download-artifact@v4
