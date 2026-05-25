@@ -26,6 +26,6 @@ class Artix < Formula
   end
 
   test do
-    assert_match version.to_s, shell_output("#{bin}/artix --version", 2)
+    assert_match "developer workspace cleanup TUI", shell_output("#{bin}/artix --help")
   end
 end
