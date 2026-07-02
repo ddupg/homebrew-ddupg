@@ -132,9 +132,10 @@ jobs:
           set -euo pipefail
 
           tap_dir="$(brew --repository)/Library/Taps/ddupg/homebrew-ddupg"
-          rm -rf "$tap_dir"
-          mkdir -p "$(dirname "$tap_dir")"
-          cp -R "$PWD" "$tap_dir"
+          if [ ! -e "$tap_dir" ]; then
+            mkdir -p "$(dirname "$tap_dir")"
+            ln -s "$PWD" "$tap_dir"
+          fi
 
           brew install --formula ddupg/ddupg/artix
           brew test ddupg/ddupg/artix
