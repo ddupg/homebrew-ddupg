@@ -130,8 +130,14 @@ jobs:
       - name: Install and test formula
         run: |
           set -euo pipefail
-          brew install --formula ./Formula/artix.rb
-          brew test artix
+
+          tap_dir="$(brew --repository)/Library/Taps/ddupg/homebrew-ddupg"
+          rm -rf "$tap_dir"
+          mkdir -p "$(dirname "$tap_dir")"
+          cp -R "$PWD" "$tap_dir"
+
+          brew install --formula ddupg/ddupg/artix
+          brew test ddupg/ddupg/artix
 
   push:
     name: push formula
