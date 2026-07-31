@@ -5,19 +5,19 @@ class Artix < Formula
 
   on_macos do
     on_intel do
-      url "https://github.com/ddupg/artix/releases/download/v0.3.1/artix-x86_64-apple-darwin.tar.gz"
-      sha256 "7c982e2198f1f7e432a82ebbb030658fbfd4ddd9facb99ee2d5dfbed0f4ead40"
+      url "https://github.com/ddupg/artix/releases/download/v0.3.2/artix-x86_64-apple-darwin.tar.gz"
+      sha256 "1c35a42222401ecab8585bc3002dd1d6a6eef9b07f051d5c10944767a3359153"
     end
     on_arm do
-      url "https://github.com/ddupg/artix/releases/download/v0.3.1/artix-aarch64-apple-darwin.tar.gz"
-      sha256 "3d7cb1db2e5e29077b13e1e212e049aa28b9a7ee22a2b1496e4e4e7a93de74a6"
+      url "https://github.com/ddupg/artix/releases/download/v0.3.2/artix-aarch64-apple-darwin.tar.gz"
+      sha256 "cf0946d8cc967dc837982c109c15a5ce4efb0381d7720da533501320fad01ae2"
     end
   end
 
   on_linux do
     on_intel do
-      url "https://github.com/ddupg/artix/releases/download/v0.3.1/artix-x86_64-unknown-linux-gnu.tar.gz"
-      sha256 "9388212188e8df25a388cf6b5c80191de18f2d1882dfbb5e404f3ec58cd305be"
+      url "https://github.com/ddupg/artix/releases/download/v0.3.2/artix-x86_64-unknown-linux-gnu.tar.gz"
+      sha256 "17ae6a1b76642f074280b95e7227a9c4331019b24ad1960344d41524be27eb4e"
     end
   end
 
